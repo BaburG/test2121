@@ -1,8 +1,7 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef } from "react";
-
-const heroFont = { fontFamily: "var(--font-inter)" } as const;
 
 // Displacement map for the fisheye/lens warp: a full-frame normal map where the
 // red channel encodes horizontal displacement and the green channel vertical, so
@@ -27,8 +26,8 @@ const fisheyeMap = `data:image/svg+xml,${encodeURIComponent(
 
 export default function Home() {
   const blobRef = useRef<HTMLDivElement>(null);
-  const whiteRef = useRef<HTMLHeadingElement>(null);
-  const blackRef = useRef<HTMLHeadingElement>(null);
+  const whiteRef = useRef<HTMLDivElement>(null);
+  const blackRef = useRef<HTMLDivElement>(null);
   const fisheyeRef = useRef<SVGFEDisplacementMapElement>(null);
 
   // Normalized horizontal mouse position (0 = far left, 1 = far right).
@@ -69,9 +68,8 @@ export default function Home() {
       const ox = currentOffset.current.x;
       const oy = currentOffset.current.y;
 
-      // Transformation: expand/bulge toward the left, contract/densify to the right.
-      // (Contraction is kept moderate so the pure-white type stays on the gradient.)
-      const scale = 1.55 - 0.75 * nx;
+      // Transformation: broaden/bulge toward the left, condense toward the right.
+      const scale = 1.5 - 0.62 * nx;
       const dx = ox * 0.04;
       const dy = oy * 0.04;
       if (blobRef.current) {
@@ -80,21 +78,21 @@ export default function Home() {
 
       // Fisheye/lens intensity grows as the cursor moves left (blob bulges more).
       if (fisheyeRef.current) {
-        const warp = 45 + (1 - nx) * 70;
+        const warp = 30 + (1 - nx) * 48;
         fisheyeRef.current.setAttribute("scale", warp.toFixed(2));
       }
 
       // The wordmarks ride a subtle fluid layer that drifts a little with the mouse
       // (opposite directions for a gentle parallax depth).
       if (whiteRef.current) {
-        whiteRef.current.style.transform = `translate3d(${(-ox * 0.04).toFixed(
+        whiteRef.current.style.transform = `translate3d(${(-ox * 0.035).toFixed(
           2,
-        )}px, ${(-oy * 0.04).toFixed(2)}px, 0)`;
+        )}px, ${(-oy * 0.035).toFixed(2)}px, 0)`;
       }
       if (blackRef.current) {
-        blackRef.current.style.transform = `translate(${(ox * 0.05).toFixed(
+        blackRef.current.style.transform = `translate(${(ox * 0.045).toFixed(
           2,
-        )}px, calc(-50% + ${(oy * 0.05).toFixed(2)}px)) skewX(-6deg)`;
+        )}px, calc(-50% + ${(oy * 0.045).toFixed(2)}px))`;
       }
 
       raf = requestAnimationFrame(tick);
@@ -111,10 +109,7 @@ export default function Home() {
   return (
     <section className="relative h-[100svh] w-full overflow-hidden bg-white">
       {/* Filter definitions (offscreen). */}
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute h-0 w-0"
-      >
+      <svg aria-hidden="true" className="pointer-events-none absolute h-0 w-0">
         <defs>
           <filter
             id="fisheye"
@@ -137,7 +132,7 @@ export default function Home() {
               ref={fisheyeRef}
               in="SourceGraphic"
               in2="map"
-              scale="70"
+              scale="50"
               xChannelSelector="R"
               yChannelSelector="G"
             />
@@ -145,89 +140,99 @@ export default function Home() {
           <filter id="grain">
             <feTurbulence
               type="fractalNoise"
-              baseFrequency="0.72"
-              numOctaves={4}
+              baseFrequency="0.85"
+              numOctaves={3}
               stitchTiles="stitch"
             />
             <feColorMatrix type="saturate" values="0" />
             <feComponentTransfer>
-              <feFuncR type="linear" slope="2.8" intercept="-0.9" />
-              <feFuncG type="linear" slope="2.8" intercept="-0.9" />
-              <feFuncB type="linear" slope="2.8" intercept="-0.9" />
+              <feFuncR type="linear" slope="1.8" intercept="-0.4" />
+              <feFuncG type="linear" slope="1.8" intercept="-0.4" />
+              <feFuncB type="linear" slope="1.8" intercept="-0.4" />
             </feComponentTransfer>
           </filter>
         </defs>
       </svg>
 
-      {/* Fluid gradient blob — sits toward the left, warped by the fisheye lens. */}
+      {/* Fluid atmospheric mesh — a violet/blue bloom over the upper-left that
+          dissolves into white toward the top and center-right, with a charcoal
+          shadow tucked along its lower edge. */}
       <div
         ref={blobRef}
-        className="pointer-events-none absolute left-[18%] top-[58%] z-0 h-[86vmin] w-[86vmin] will-change-transform"
+        className="pointer-events-none absolute left-[26%] top-[48%] z-0 h-[92vmin] w-[92vmin] will-change-transform"
         style={{
           transform: "translate3d(-50%, -50%, 0) scale(1.2)",
-          filter: "url(#fisheye) blur(22px)",
+          filter: "url(#fisheye) blur(52px)",
         }}
       >
         <div
           className="blob-shape absolute inset-0 overflow-hidden"
           style={{
-            animation: "blob-morph 42s ease-in-out infinite",
+            animation: "blob-morph 46s ease-in-out infinite",
             background:
-              "radial-gradient(closest-side at 46% 42%, #635bff 0%, #4f46e5 30%, #3b2d84 52%, #17132e 74%, rgba(10,8,20,0) 100%)",
+              "radial-gradient(34% 30% at 30% 30%, #635bff 0%, rgba(99,91,255,0) 60%)," +
+              "radial-gradient(52% 50% at 34% 40%, #4f46e5 0%, rgba(79,70,229,0) 66%)," +
+              "radial-gradient(62% 58% at 40% 52%, #3b2d84 0%, rgba(59,45,132,0) 70%)," +
+              "radial-gradient(66% 42% at 45% 78%, rgba(8,7,18,0.96) 0%, rgba(8,7,18,0) 60%)",
           }}
         >
           <div
             className="blob-layer absolute -inset-1/4"
             style={{
-              animation: "blob-swirl 70s linear infinite",
+              animation: "blob-swirl 80s linear infinite",
               mixBlendMode: "screen",
               background:
-                "radial-gradient(36% 36% at 32% 30%, rgba(196,181,253,0.9) 0%, rgba(196,181,253,0) 68%), radial-gradient(34% 34% at 40% 40%, rgba(99,102,241,0.95) 0%, rgba(99,102,241,0) 70%)",
-            }}
-          />
-          <div
-            className="blob-layer absolute -inset-1/4"
-            style={{
-              animation: "blob-swirl-reverse 90s linear infinite",
-              mixBlendMode: "multiply",
-              background:
-                "radial-gradient(44% 44% at 64% 70%, rgba(9,7,20,0.98) 0%, rgba(9,7,20,0) 72%), radial-gradient(30% 30% at 58% 32%, rgba(59,45,132,0.9) 0%, rgba(59,45,132,0) 70%)",
+                "radial-gradient(30% 30% at 30% 28%, rgba(196,181,253,0.7) 0%, rgba(196,181,253,0) 64%)",
             }}
           />
         </div>
       </div>
 
-      {/* Hero typography (rides a subtle fluid parallax layer). */}
-      <h1
-        ref={whiteRef}
-        className="pointer-events-none absolute bottom-[24vh] left-[2vw] z-30 select-none leading-[0.78] text-white will-change-transform"
-        style={{
-          ...heroFont,
-          fontWeight: 800,
-          letterSpacing: "-0.045em",
-          fontSize: "clamp(4rem, 16vw, 15rem)",
-        }}
+      {/* Subtle dithered noise, tightly bound to the color gradients (overlay
+          keeps the pure-white canvas and the crisp logos clean). */}
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-10 h-full w-full opacity-[0.45] mix-blend-overlay"
       >
-        ACME
-      </h1>
+        <rect width="100%" height="100%" filter="url(#grain)" />
+      </svg>
 
-      <h2
-        ref={blackRef}
-        className="pointer-events-none absolute right-[-1vw] top-[42%] z-20 select-none whitespace-nowrap italic leading-[0.78] text-black will-change-transform"
-        style={{
-          ...heroFont,
-          fontWeight: 900,
-          fontStyle: "italic",
-          letterSpacing: "-0.045em",
-          fontSize: "clamp(3.5rem, 15vw, 14rem)",
-          transform: "translate(0px, -50%) skewX(-6deg)",
-        }}
+      {/* Lower-left hero: 4Muse (white), riding a subtle parallax layer. */}
+      <div
+        ref={whiteRef}
+        className="pointer-events-none absolute bottom-[22vh] left-[2vw] z-30 will-change-transform"
       >
-        ACME
-      </h2>
+        <Image
+          src="/Logo/4muse-white.webp"
+          alt="4Muse"
+          width={865}
+          height={150}
+          priority
+          draggable={false}
+          style={{ height: "clamp(2.6rem, 9vw, 8rem)", width: "auto" }}
+        />
+      </div>
+
+      {/* Center-right hero: 4Minds (black), vertically centered and bleeding off
+          the right edge. */}
+      <div
+        ref={blackRef}
+        className="pointer-events-none absolute right-[-4vw] top-1/2 z-20 will-change-transform"
+        style={{ transform: "translateY(-50%)" }}
+      >
+        <Image
+          src="/Logo/4minds-black.webp"
+          alt="4Minds"
+          width={4588}
+          height={810}
+          priority
+          draggable={false}
+          style={{ height: "clamp(3.5rem, 12vw, 10rem)", width: "auto" }}
+        />
+      </div>
 
       {/* Header bar */}
-      <header className="absolute inset-x-0 top-0 z-40 flex items-center justify-between px-6 py-5 sm:px-10">
+      <header className="absolute inset-x-0 top-0 z-40 flex items-start justify-between px-8 pt-8 sm:px-12 sm:pt-10">
         <button
           type="button"
           aria-label="Open menu"
@@ -237,22 +242,16 @@ export default function Home() {
           <span className="block h-[2px] w-7 bg-black transition-all group-hover:w-5" />
           <span className="block h-[2px] w-7 bg-black transition-all group-hover:w-8" />
         </button>
-        <span
-          className="text-2xl font-black tracking-tight text-black"
-          style={heroFont}
-        >
-          ACME
-        </span>
+        <Image
+          src="/Logo/4m-black.webp"
+          alt="4M"
+          width={380}
+          height={150}
+          priority
+          draggable={false}
+          style={{ height: "clamp(1.5rem, 2.4vw, 2.1rem)", width: "auto" }}
+        />
       </header>
-
-      {/* Hard film-grain — a uniform noise layer on top of everything, so the
-          texture also sits on the wordmarks and the white background. */}
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-50 h-full w-full opacity-[0.35]"
-      >
-        <rect width="100%" height="100%" filter="url(#grain)" />
-      </svg>
     </section>
   );
 }
