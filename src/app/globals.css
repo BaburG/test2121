@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Organic, continuously warping blob shape — slow and subtle. */
+@keyframes blob-morph {
+  0% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  25% {
+    border-radius: 46% 54% 58% 42% / 54% 58% 42% 46%;
+  }
+  50% {
+    border-radius: 54% 46% 44% 56% / 42% 54% 46% 58%;
+  }
+  75% {
+    border-radius: 48% 52% 52% 48% / 56% 44% 56% 44%;
+  }
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+}
+
+/* Very slow swirling of the internal gradient layers to fake viscous liquid motion. */
+@keyframes blob-swirl {
+  from {
+    transform: rotate(0deg) scale(1.1);
+  }
+  to {
+    transform: rotate(360deg) scale(1.1);
+  }
+}
+
+@keyframes blob-swirl-reverse {
+  from {
+    transform: rotate(0deg) scale(1.15);
+  }
+  to {
+    transform: rotate(-360deg) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob-shape,
+  .blob-layer {
+    animation: none !important;
+  }
+}
