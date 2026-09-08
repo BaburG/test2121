@@ -24,3 +24,48 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Organic, continuously warping blob shape. */
+@keyframes blob-morph {
+  0% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  25% {
+    border-radius: 40% 60% 65% 35% / 55% 65% 35% 45%;
+  }
+  50% {
+    border-radius: 55% 45% 40% 60% / 35% 55% 45% 65%;
+  }
+  75% {
+    border-radius: 45% 55% 55% 45% / 60% 40% 60% 40%;
+  }
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+}
+
+/* Slow swirling of the internal gradient layers to fake viscous liquid motion. */
+@keyframes blob-swirl {
+  from {
+    transform: rotate(0deg) scale(1.1);
+  }
+  to {
+    transform: rotate(360deg) scale(1.1);
+  }
+}
+
+@keyframes blob-swirl-reverse {
+  from {
+    transform: rotate(0deg) scale(1.15);
+  }
+  to {
+    transform: rotate(-360deg) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob-shape,
+  .blob-layer {
+    animation: none !important;
+  }
+}

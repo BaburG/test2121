@@ -1,203 +1,172 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef } from "react";
 
-type Task = {
-  id: string;
-  title: string;
-  done: boolean;
-  createdAt: string;
-};
+const syneFont = { fontFamily: "var(--font-syne)" } as const;
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [title, setTitle] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const blobRef = useRef<HTMLDivElement>(null);
 
-  const remaining = useMemo(
-    () => tasks.filter((t) => !t.done).length,
-    [tasks],
-  );
+  // Normalized horizontal mouse position (0 = far left, 1 = far right).
+  const targetX = useRef(0.5);
+  const currentX = useRef(0.5);
 
-  async function refresh() {
-    setError(null);
-    try {
-      const res = await fetch("/api/tasks");
-      if (!res.ok) throw new Error(`Failed to load tasks (${res.status})`);
-      const data = (await res.json()) as { tasks: Task[] };
-      setTasks(data.tasks);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Lagging displacement (in px, relative to viewport center) toward the cursor.
+  const targetOffset = useRef({ x: 0, y: 0 });
+  const currentOffset = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/tasks");
-        if (!res.ok) throw new Error(`Failed to load tasks (${res.status})`);
-        const data = (await res.json()) as { tasks: Task[] };
-        if (active) setTasks(data.tasks);
-      } catch (e) {
-        if (active) {
-          setError(e instanceof Error ? e.message : "Something went wrong");
-        }
-      } finally {
-        if (active) setLoading(false);
+    const setFromPoint = (clientX: number, clientY: number) => {
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      targetX.current = Math.min(1, Math.max(0, clientX / w));
+      targetOffset.current = {
+        x: clientX - w / 2,
+        y: clientY - h / 2,
+      };
+    };
+
+    const onMouseMove = (e: MouseEvent) => setFromPoint(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) setFromPoint(t.clientX, t.clientY);
+    };
+
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    let raf = 0;
+    const tick = () => {
+      // Viscous damping via lerp — the position eases toward the target,
+      // and the displacement eases more slowly to create a trailing "lag".
+      currentX.current += (targetX.current - currentX.current) * 0.09;
+      currentOffset.current.x +=
+        (targetOffset.current.x - currentOffset.current.x) * 0.05;
+      currentOffset.current.y +=
+        (targetOffset.current.y - currentOffset.current.y) * 0.05;
+
+      const nx = currentX.current;
+      // Left (nx→0): bulge/expand ~1.75. Right (nx→1): contract/densify ~0.6.
+      const scale = 1.75 - 1.15 * nx;
+      // Subtle lagging drift toward the cursor.
+      const dx = currentOffset.current.x * 0.05;
+      const dy = currentOffset.current.y * 0.05;
+
+      const el = blobRef.current;
+      if (el) {
+        el.style.transform = `translate3d(calc(-50% + ${dx}px), calc(-50% + ${dy}px), 0) scale(${scale})`;
       }
-    })();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
     return () => {
-      active = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+      cancelAnimationFrame(raf);
     };
   }, []);
 
-  async function addTask(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: trimmed }),
-      });
-      if (!res.ok) throw new Error(`Failed to add task (${res.status})`);
-      const data = (await res.json()) as { task: Task };
-      setTasks((prev) => [...prev, data.task]);
-      setTitle("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function toggleTask(task: Task) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, done: !t.done } : t)),
-    );
-    try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ done: !task.done }),
-      });
-      if (!res.ok) throw new Error("Failed to update task");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      refresh();
-    }
-  }
-
-  async function removeTask(id: string) {
-    const prev = tasks;
-    setTasks((current) => current.filter((t) => t.id !== id));
-    try {
-      const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete task");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      setTasks(prev);
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white text-zinc-900 dark:from-zinc-950 dark:via-zinc-950 dark:to-black dark:text-zinc-100">
-      <main className="mx-auto flex w-full max-w-xl flex-col gap-8 px-6 py-16">
-        <header className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white shadow-lg shadow-indigo-600/30">
-              ✓
-            </span>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Task Manager
-            </h1>
-          </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            A small full-stack demo powered by Next.js API routes.{" "}
-            {loading
-              ? "Loading…"
-              : `${remaining} of ${tasks.length} task${
-                  tasks.length === 1 ? "" : "s"
-                } remaining.`}
-          </p>
-        </header>
-
-        <form onSubmit={addTask} className="flex gap-2">
-          <input
-            aria-label="New task title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Add a new task…"
-            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          <button
-            type="submit"
-            disabled={submitting || !title.trim()}
-            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting ? "Adding…" : "Add"}
-          </button>
-        </form>
-
-        {error && (
+    <section className="relative h-[100svh] w-full overflow-hidden bg-white">
+      {/* Fluid gradient blob */}
+      <div
+        ref={blobRef}
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[68vmin] w-[68vmin] will-change-transform"
+        style={{
+          transform: "translate3d(-50%, -50%, 0) scale(1.2)",
+          filter: "blur(44px)",
+        }}
+      >
+        <div
+          className="blob-shape absolute inset-0 overflow-hidden"
+          style={{
+            animation: "blob-morph 14s ease-in-out infinite",
+            background:
+              "radial-gradient(closest-side at 46% 42%, #4f46e5 0%, #3b2d84 44%, #17132e 72%, rgba(10,8,20,0) 100%)",
+          }}
+        >
           <div
-            role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-          >
-            {error}
-          </div>
-        )}
+            className="blob-layer absolute -inset-1/4"
+            style={{
+              animation: "blob-swirl 22s linear infinite",
+              mixBlendMode: "screen",
+              background:
+                "radial-gradient(38% 38% at 34% 36%, rgba(99,102,241,0.95) 0%, rgba(99,102,241,0) 70%)",
+            }}
+          />
+          <div
+            className="blob-layer absolute -inset-1/4"
+            style={{
+              animation: "blob-swirl-reverse 30s linear infinite",
+              mixBlendMode: "multiply",
+              background:
+                "radial-gradient(42% 42% at 66% 68%, rgba(12,10,24,0.98) 0%, rgba(12,10,24,0) 72%), radial-gradient(30% 30% at 60% 30%, rgba(59,45,132,0.9) 0%, rgba(59,45,132,0) 70%)",
+            }}
+          />
+        </div>
+      </div>
 
-        <ul className="flex flex-col gap-2">
-          {!loading && tasks.length === 0 && (
-            <li className="rounded-lg border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-              No tasks yet. Add your first one above.
-            </li>
-          )}
-          {tasks.map((task) => (
-            <li
-              key={task.id}
-              className="group flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <button
-                onClick={() => toggleTask(task)}
-                aria-label={task.done ? "Mark as not done" : "Mark as done"}
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-                  task.done
-                    ? "border-indigo-600 bg-indigo-600 text-white"
-                    : "border-zinc-300 dark:border-zinc-600"
-                }`}
-              >
-                {task.done && <span className="text-xs">✓</span>}
-              </button>
-              <span
-                className={`flex-1 text-sm ${
-                  task.done
-                    ? "text-zinc-400 line-through dark:text-zinc-500"
-                    : ""
-                }`}
-              >
-                {task.title}
-              </span>
-              <button
-                onClick={() => removeTask(task.id)}
-                aria-label="Delete task"
-                className="rounded-md px-2 py-1 text-xs text-zinc-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/40"
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      </main>
-    </div>
+      {/* Granular / dithered noise overlay (SVG feTurbulence + feColorMatrix) */}
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-10 h-full w-full opacity-[0.22] mix-blend-multiply"
+      >
+        <filter id="grain">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.82"
+            numOctaves={2}
+            stitchTiles="stitch"
+          />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#grain)" />
+      </svg>
+
+      {/* Hero typography */}
+      <h1
+        className="pointer-events-none absolute bottom-[5vh] left-[4vw] z-30 select-none leading-[0.8] text-white"
+        style={{
+          ...syneFont,
+          fontWeight: 800,
+          letterSpacing: "-0.05em",
+          fontSize: "clamp(4.5rem, 20vw, 19rem)",
+        }}
+      >
+        ACME
+      </h1>
+
+      <h2
+        className="pointer-events-none absolute right-[4vw] top-1/2 z-20 -translate-y-1/2 select-none leading-[0.8] text-black"
+        style={{
+          ...syneFont,
+          fontWeight: 800,
+          letterSpacing: "-0.05em",
+          fontSize: "clamp(3rem, 13vw, 12rem)",
+        }}
+      >
+        ACME
+      </h2>
+
+      {/* Header bar */}
+      <header className="absolute inset-x-0 top-0 z-40 flex items-center justify-between px-6 py-5 sm:px-10">
+        <button
+          type="button"
+          aria-label="Open menu"
+          className="group flex flex-col gap-[6px] p-1"
+        >
+          <span className="block h-[2px] w-7 bg-black transition-all group-hover:w-8" />
+          <span className="block h-[2px] w-7 bg-black transition-all group-hover:w-5" />
+          <span className="block h-[2px] w-7 bg-black transition-all group-hover:w-8" />
+        </button>
+        <span
+          className="text-xl font-bold tracking-tight text-black"
+          style={syneFont}
+        >
+          ACME
+        </span>
+      </header>
+    </section>
   );
 }

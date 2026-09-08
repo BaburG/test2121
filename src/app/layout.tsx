@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Syne } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,16 +12,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const syne = Syne({
+  variable: "--font-syne",
+  subsets: ["latin"],
+  weight: ["700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "Task Manager",
-  description: "A small full-stack task manager built with Next.js",
+  title: "ACME",
+  description: "ACME — a fluid, interactive landing page",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
