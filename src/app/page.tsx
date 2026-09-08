@@ -84,16 +84,17 @@ export default function Home() {
         fisheyeRef.current.setAttribute("scale", warp.toFixed(2));
       }
 
-      // The wordmarks ride a subtle fluid layer that drifts slightly with the mouse.
+      // The wordmarks ride a subtle fluid layer that drifts a little with the mouse
+      // (opposite directions for a gentle parallax depth).
       if (whiteRef.current) {
-        whiteRef.current.style.transform = `translate3d(${(-ox * 0.02).toFixed(
+        whiteRef.current.style.transform = `translate3d(${(-ox * 0.04).toFixed(
           2,
-        )}px, ${(-oy * 0.02).toFixed(2)}px, 0)`;
+        )}px, ${(-oy * 0.04).toFixed(2)}px, 0)`;
       }
       if (blackRef.current) {
-        blackRef.current.style.transform = `translate(${(-ox * 0.03).toFixed(
+        blackRef.current.style.transform = `translate(${(ox * 0.05).toFixed(
           2,
-        )}px, calc(-50% + ${(-oy * 0.03).toFixed(2)}px)) skewX(-6deg)`;
+        )}px, calc(-50% + ${(oy * 0.05).toFixed(2)}px)) skewX(-6deg)`;
       }
 
       raf = requestAnimationFrame(tick);
