@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-const syneFont = { fontFamily: "var(--font-syne)" } as const;
+const heroFont = { fontFamily: "var(--font-inter)" } as const;
 
 export default function Home() {
   const blobRef = useRef<HTMLDivElement>(null);
@@ -69,13 +69,13 @@ export default function Home() {
 
   return (
     <section className="relative h-[100svh] w-full overflow-hidden bg-white">
-      {/* Fluid gradient blob */}
+      {/* Fluid gradient blob — sits toward the left and bleeds off-screen. */}
       <div
         ref={blobRef}
-        className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[68vmin] w-[68vmin] will-change-transform"
+        className="pointer-events-none absolute left-[30%] top-1/2 z-0 h-[80vmin] w-[80vmin] will-change-transform"
         style={{
           transform: "translate3d(-50%, -50%, 0) scale(1.2)",
-          filter: "blur(44px)",
+          filter: "blur(40px)",
         }}
       >
         <div
@@ -83,7 +83,7 @@ export default function Home() {
           style={{
             animation: "blob-morph 14s ease-in-out infinite",
             background:
-              "radial-gradient(closest-side at 46% 42%, #4f46e5 0%, #3b2d84 44%, #17132e 72%, rgba(10,8,20,0) 100%)",
+              "radial-gradient(closest-side at 46% 42%, #635bff 0%, #4f46e5 30%, #3b2d84 52%, #17132e 74%, rgba(10,8,20,0) 100%)",
           }}
         >
           <div
@@ -92,7 +92,7 @@ export default function Home() {
               animation: "blob-swirl 22s linear infinite",
               mixBlendMode: "screen",
               background:
-                "radial-gradient(38% 38% at 34% 36%, rgba(99,102,241,0.95) 0%, rgba(99,102,241,0) 70%)",
+                "radial-gradient(36% 36% at 32% 30%, rgba(196,181,253,0.9) 0%, rgba(196,181,253,0) 68%), radial-gradient(34% 34% at 40% 40%, rgba(99,102,241,0.95) 0%, rgba(99,102,241,0) 70%)",
             }}
           />
           <div
@@ -101,22 +101,22 @@ export default function Home() {
               animation: "blob-swirl-reverse 30s linear infinite",
               mixBlendMode: "multiply",
               background:
-                "radial-gradient(42% 42% at 66% 68%, rgba(12,10,24,0.98) 0%, rgba(12,10,24,0) 72%), radial-gradient(30% 30% at 60% 30%, rgba(59,45,132,0.9) 0%, rgba(59,45,132,0) 70%)",
+                "radial-gradient(44% 44% at 64% 70%, rgba(9,7,20,0.98) 0%, rgba(9,7,20,0) 72%), radial-gradient(30% 30% at 58% 32%, rgba(59,45,132,0.9) 0%, rgba(59,45,132,0) 70%)",
             }}
           />
         </div>
       </div>
 
-      {/* Granular / dithered noise overlay (SVG feTurbulence + feColorMatrix) */}
+      {/* Granular / dithered noise overlay (SVG feTurbulence + feColorMatrix). */}
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-10 h-full w-full opacity-[0.22] mix-blend-multiply"
+        className="pointer-events-none absolute inset-0 z-10 h-full w-full opacity-[0.55] mix-blend-overlay"
       >
         <filter id="grain">
           <feTurbulence
             type="fractalNoise"
-            baseFrequency="0.82"
-            numOctaves={2}
+            baseFrequency="0.75"
+            numOctaves={3}
             stitchTiles="stitch"
           />
           <feColorMatrix type="saturate" values="0" />
@@ -126,24 +126,26 @@ export default function Home() {
 
       {/* Hero typography */}
       <h1
-        className="pointer-events-none absolute bottom-[5vh] left-[4vw] z-30 select-none leading-[0.8] text-white"
+        className="pointer-events-none absolute bottom-[24vh] left-[1vw] z-30 select-none leading-[0.78] text-white"
         style={{
-          ...syneFont,
+          ...heroFont,
           fontWeight: 800,
-          letterSpacing: "-0.05em",
-          fontSize: "clamp(4.5rem, 20vw, 19rem)",
+          letterSpacing: "-0.045em",
+          fontSize: "clamp(4rem, 16vw, 15rem)",
         }}
       >
         ACME
       </h1>
 
       <h2
-        className="pointer-events-none absolute right-[4vw] top-1/2 z-20 -translate-y-1/2 select-none leading-[0.8] text-black"
+        className="pointer-events-none absolute right-[-1vw] top-[42%] z-20 -translate-y-1/2 select-none whitespace-nowrap italic leading-[0.78] text-black"
         style={{
-          ...syneFont,
-          fontWeight: 800,
-          letterSpacing: "-0.05em",
-          fontSize: "clamp(3rem, 13vw, 12rem)",
+          ...heroFont,
+          fontWeight: 900,
+          fontStyle: "italic",
+          letterSpacing: "-0.045em",
+          fontSize: "clamp(3.5rem, 15vw, 14rem)",
+          transform: "translateY(-50%) skewX(-6deg)",
         }}
       >
         ACME
@@ -161,8 +163,8 @@ export default function Home() {
           <span className="block h-[2px] w-7 bg-black transition-all group-hover:w-8" />
         </button>
         <span
-          className="text-xl font-bold tracking-tight text-black"
-          style={syneFont}
+          className="text-2xl font-black tracking-tight text-black"
+          style={heroFont}
         >
           ACME
         </span>
