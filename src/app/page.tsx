@@ -4,14 +4,38 @@ import { useEffect, useRef } from "react";
 
 const heroFont = { fontFamily: "var(--font-inter)" } as const;
 
+// Displacement map for the fisheye/lens warp: a full-frame normal map where the
+// red channel encodes horizontal displacement and the green channel vertical, so
+// feDisplacementMap bulges the blob outward from its center like a lens.
+const fisheyeMap = `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'>
+     <defs>
+       <linearGradient id='fx' x1='0' y1='0' x2='1' y2='0'>
+         <stop offset='0' stop-color='#f00'/>
+         <stop offset='1' stop-color='#000'/>
+       </linearGradient>
+       <linearGradient id='fy' x1='0' y1='0' x2='0' y2='1'>
+         <stop offset='0' stop-color='#0f0'/>
+         <stop offset='1' stop-color='#000'/>
+       </linearGradient>
+     </defs>
+     <rect width='320' height='320' fill='#000'/>
+     <rect width='320' height='320' fill='url(#fx)'/>
+     <rect width='320' height='320' fill='url(#fy)' style='mix-blend-mode:screen'/>
+   </svg>`,
+)}`;
+
 export default function Home() {
   const blobRef = useRef<HTMLDivElement>(null);
+  const whiteRef = useRef<HTMLHeadingElement>(null);
+  const blackRef = useRef<HTMLHeadingElement>(null);
+  const fisheyeRef = useRef<SVGFEDisplacementMapElement>(null);
 
   // Normalized horizontal mouse position (0 = far left, 1 = far right).
   const targetX = useRef(0.5);
   const currentX = useRef(0.5);
 
-  // Lagging displacement (in px, relative to viewport center) toward the cursor.
+  // Lagging displacement (px, relative to viewport center) toward the cursor.
   const targetOffset = useRef({ x: 0, y: 0 });
   const currentOffset = useRef({ x: 0, y: 0 });
 
@@ -20,10 +44,7 @@ export default function Home() {
       const w = window.innerWidth || 1;
       const h = window.innerHeight || 1;
       targetX.current = Math.min(1, Math.max(0, clientX / w));
-      targetOffset.current = {
-        x: clientX - w / 2,
-        y: clientY - h / 2,
-      };
+      targetOffset.current = { x: clientX - w / 2, y: clientY - h / 2 };
     };
 
     const onMouseMove = (e: MouseEvent) => setFromPoint(e.clientX, e.clientY);
@@ -37,25 +58,44 @@ export default function Home() {
 
     let raf = 0;
     const tick = () => {
-      // Viscous damping via lerp — the position eases toward the target,
-      // and the displacement eases more slowly to create a trailing "lag".
-      currentX.current += (targetX.current - currentX.current) * 0.09;
+      // Slow, viscous damping — the smaller the factor, the more subtle the drift.
+      currentX.current += (targetX.current - currentX.current) * 0.035;
       currentOffset.current.x +=
-        (targetOffset.current.x - currentOffset.current.x) * 0.05;
+        (targetOffset.current.x - currentOffset.current.x) * 0.028;
       currentOffset.current.y +=
-        (targetOffset.current.y - currentOffset.current.y) * 0.05;
+        (targetOffset.current.y - currentOffset.current.y) * 0.028;
 
       const nx = currentX.current;
-      // Left (nx→0): bulge/expand ~1.75. Right (nx→1): contract/densify ~0.6.
-      const scale = 1.75 - 1.15 * nx;
-      // Subtle lagging drift toward the cursor.
-      const dx = currentOffset.current.x * 0.05;
-      const dy = currentOffset.current.y * 0.05;
+      const ox = currentOffset.current.x;
+      const oy = currentOffset.current.y;
 
-      const el = blobRef.current;
-      if (el) {
-        el.style.transform = `translate3d(calc(-50% + ${dx}px), calc(-50% + ${dy}px), 0) scale(${scale})`;
+      // Transformation: expand/bulge toward the left, contract/densify to the right.
+      // (Contraction is kept moderate so the pure-white type stays on the gradient.)
+      const scale = 1.55 - 0.75 * nx;
+      const dx = ox * 0.04;
+      const dy = oy * 0.04;
+      if (blobRef.current) {
+        blobRef.current.style.transform = `translate3d(calc(-50% + ${dx}px), calc(-50% + ${dy}px), 0) scale(${scale})`;
       }
+
+      // Fisheye/lens intensity grows as the cursor moves left (blob bulges more).
+      if (fisheyeRef.current) {
+        const warp = 45 + (1 - nx) * 70;
+        fisheyeRef.current.setAttribute("scale", warp.toFixed(2));
+      }
+
+      // The wordmarks ride a subtle fluid layer that drifts slightly with the mouse.
+      if (whiteRef.current) {
+        whiteRef.current.style.transform = `translate3d(${(-ox * 0.02).toFixed(
+          2,
+        )}px, ${(-oy * 0.02).toFixed(2)}px, 0)`;
+      }
+      if (blackRef.current) {
+        blackRef.current.style.transform = `translate(${(-ox * 0.03).toFixed(
+          2,
+        )}px, calc(-50% + ${(-oy * 0.03).toFixed(2)}px)) skewX(-6deg)`;
+      }
+
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -69,19 +109,68 @@ export default function Home() {
 
   return (
     <section className="relative h-[100svh] w-full overflow-hidden bg-white">
-      {/* Fluid gradient blob — sits toward the left and bleeds off-screen. */}
+      {/* Filter definitions (offscreen). */}
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute h-0 w-0"
+      >
+        <defs>
+          <filter
+            id="fisheye"
+            x="-15%"
+            y="-15%"
+            width="130%"
+            height="130%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feImage
+              href={fisheyeMap}
+              preserveAspectRatio="none"
+              result="map"
+              x="0%"
+              y="0%"
+              width="100%"
+              height="100%"
+            />
+            <feDisplacementMap
+              ref={fisheyeRef}
+              in="SourceGraphic"
+              in2="map"
+              scale="70"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+          <filter id="grain">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.72"
+              numOctaves={4}
+              stitchTiles="stitch"
+            />
+            <feColorMatrix type="saturate" values="0" />
+            <feComponentTransfer>
+              <feFuncR type="linear" slope="2.8" intercept="-0.9" />
+              <feFuncG type="linear" slope="2.8" intercept="-0.9" />
+              <feFuncB type="linear" slope="2.8" intercept="-0.9" />
+            </feComponentTransfer>
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Fluid gradient blob — sits toward the left, warped by the fisheye lens. */}
       <div
         ref={blobRef}
-        className="pointer-events-none absolute left-[30%] top-1/2 z-0 h-[80vmin] w-[80vmin] will-change-transform"
+        className="pointer-events-none absolute left-[18%] top-[58%] z-0 h-[86vmin] w-[86vmin] will-change-transform"
         style={{
           transform: "translate3d(-50%, -50%, 0) scale(1.2)",
-          filter: "blur(40px)",
+          filter: "url(#fisheye) blur(22px)",
         }}
       >
         <div
           className="blob-shape absolute inset-0 overflow-hidden"
           style={{
-            animation: "blob-morph 14s ease-in-out infinite",
+            animation: "blob-morph 42s ease-in-out infinite",
             background:
               "radial-gradient(closest-side at 46% 42%, #635bff 0%, #4f46e5 30%, #3b2d84 52%, #17132e 74%, rgba(10,8,20,0) 100%)",
           }}
@@ -89,7 +178,7 @@ export default function Home() {
           <div
             className="blob-layer absolute -inset-1/4"
             style={{
-              animation: "blob-swirl 22s linear infinite",
+              animation: "blob-swirl 70s linear infinite",
               mixBlendMode: "screen",
               background:
                 "radial-gradient(36% 36% at 32% 30%, rgba(196,181,253,0.9) 0%, rgba(196,181,253,0) 68%), radial-gradient(34% 34% at 40% 40%, rgba(99,102,241,0.95) 0%, rgba(99,102,241,0) 70%)",
@@ -98,7 +187,7 @@ export default function Home() {
           <div
             className="blob-layer absolute -inset-1/4"
             style={{
-              animation: "blob-swirl-reverse 30s linear infinite",
+              animation: "blob-swirl-reverse 90s linear infinite",
               mixBlendMode: "multiply",
               background:
                 "radial-gradient(44% 44% at 64% 70%, rgba(9,7,20,0.98) 0%, rgba(9,7,20,0) 72%), radial-gradient(30% 30% at 58% 32%, rgba(59,45,132,0.9) 0%, rgba(59,45,132,0) 70%)",
@@ -107,26 +196,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Granular / dithered noise overlay (SVG feTurbulence + feColorMatrix). */}
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-10 h-full w-full opacity-[0.55] mix-blend-overlay"
-      >
-        <filter id="grain">
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.75"
-            numOctaves={3}
-            stitchTiles="stitch"
-          />
-          <feColorMatrix type="saturate" values="0" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#grain)" />
-      </svg>
-
-      {/* Hero typography */}
+      {/* Hero typography (rides a subtle fluid parallax layer). */}
       <h1
-        className="pointer-events-none absolute bottom-[24vh] left-[1vw] z-30 select-none leading-[0.78] text-white"
+        ref={whiteRef}
+        className="pointer-events-none absolute bottom-[24vh] left-[2vw] z-30 select-none leading-[0.78] text-white will-change-transform"
         style={{
           ...heroFont,
           fontWeight: 800,
@@ -138,14 +211,15 @@ export default function Home() {
       </h1>
 
       <h2
-        className="pointer-events-none absolute right-[-1vw] top-[42%] z-20 -translate-y-1/2 select-none whitespace-nowrap italic leading-[0.78] text-black"
+        ref={blackRef}
+        className="pointer-events-none absolute right-[-1vw] top-[42%] z-20 select-none whitespace-nowrap italic leading-[0.78] text-black will-change-transform"
         style={{
           ...heroFont,
           fontWeight: 900,
           fontStyle: "italic",
           letterSpacing: "-0.045em",
           fontSize: "clamp(3.5rem, 15vw, 14rem)",
-          transform: "translateY(-50%) skewX(-6deg)",
+          transform: "translate(0px, -50%) skewX(-6deg)",
         }}
       >
         ACME
@@ -169,6 +243,15 @@ export default function Home() {
           ACME
         </span>
       </header>
+
+      {/* Hard film-grain — a uniform noise layer on top of everything, so the
+          texture also sits on the wordmarks and the white background. */}
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-50 h-full w-full opacity-[0.35]"
+      >
+        <rect width="100%" height="100%" filter="url(#grain)" />
+      </svg>
     </section>
   );
 }
