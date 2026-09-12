@@ -1,71 +1,85 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #fff;
+  --foreground: #0b0b0b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: #fff; }
+body { color: var(--foreground); font-family: Arial, Helvetica, sans-serif; }
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
+  background: #fff;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.hero-atmosphere, .hero-atmosphere-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
-
-/* Organic, continuously warping blob shape — slow and subtle. */
-@keyframes blob-morph {
-  0% {
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-  }
-  25% {
-    border-radius: 46% 54% 58% 42% / 54% 58% 42% 46%;
-  }
-  50% {
-    border-radius: 54% 46% 44% 56% / 42% 54% 46% 58%;
-  }
-  75% {
-    border-radius: 48% 52% 52% 48% / 56% 44% 56% 44%;
-  }
-  100% {
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-  }
+.hero-atmosphere-fallback {
+  background: radial-gradient(ellipse at 15% 69%, #161720 0%, #5a62bd 15%, transparent 45%);
 }
+.hero-atmosphere, .wordmark-effect { image-rendering: pixelated; }
 
-/* Very slow swirling of the internal gradient layers to fake viscous liquid motion. */
-@keyframes blob-swirl {
-  from {
-    transform: rotate(0deg) scale(1.1);
-  }
-  to {
-    transform: rotate(360deg) scale(1.1);
-  }
+.hero-header {
+  position: absolute;
+  z-index: 4;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 2.02vw 2.03vw 0 2.42vw;
 }
-
-@keyframes blob-swirl-reverse {
-  from {
-    transform: rotate(0deg) scale(1.15);
-  }
-  to {
-    transform: rotate(-360deg) scale(1.15);
-  }
+.menu-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 2.63vw;
+  height: 1.55vw;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
+.menu-button span {
+  display: block;
+  width: 100%;
+  height: 0.27vw;
+  border-radius: 99px;
+  background: #050505;
+}
+.menu-button:focus-visible { outline: 2px solid #565bd8; outline-offset: 8px; }
+.brand-mark { display: block; width: 9.2vw; height: auto; }
 
-@media (prefers-reduced-motion: reduce) {
-  .blob-shape,
-  .blob-layer {
-    animation: none !important;
-  }
+.wordmark, .wordmark-effect { position: absolute; z-index: 2; pointer-events: none; }
+.wordmark img { display: block; width: 100%; height: auto; }
+.wordmark-muse { left: -9vw; top: 58.5%; width: 47.3vw; }
+.wordmark-minds { left: 68.45vw; top: 33.5%; width: 47.58vw; transform: skewX(-14deg); }
+.hero:has(.wordmark-effect-muse[data-rendered]) .wordmark-muse,
+.hero:has(.wordmark-effect-minds[data-rendered]) .wordmark-minds { opacity: 0; }
+
+@media (max-width: 600px) {
+  .hero-header { padding: 24px 22px; }
+  .menu-button { width: 27px; height: 17px; }
+  .menu-button span { height: 3px; }
+  .brand-mark { width: 82px; }
+  .wordmark-muse { left: -22vw; width: 94.6vw; }
+  .wordmark-minds { left: 55vw; width: 71.37vw; }
 }
